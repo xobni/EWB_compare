@@ -1,20 +1,29 @@
+VERSION 1.0 CLASS
+BEGIN
+  MultiUse = -1  'True
+END
+Attribute VB_Name = "ЭтаКнига"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
 Sub CompareBooks()
-' ver. 0.3 Г®ГІ 28.01.2019
-' ver. 0.4 Г®ГІ 25.02.2019 Г¤Г®ГЎГ ГўГ«ГҐГ­Г  ГЇГҐГ·Г ГІГј ГЇГ°Г®ГўГҐГ°ГҐГ­Г­Г»Гµ Г±ГІГ°Г Г­ГЁГ¶, ГЄГ®Г«ГЁГ·ГҐГ±ГІГўГ® Г±ГІГ®Г«ГЎГ¶Г®Гў ГЁ Г±ГІГ°Г®ГЄ, ГЁГ±ГЇГ°Г ГўГ«ГҐГ­Г» Г®ГёГЁГЎГЄГЁ ГЇГ® ГўГ»ГµГ®Г¤Гі Г§Г  ГЇГ°ГҐГ¤ГҐГ«Г» Г±ГіГ№ГҐГ±ГІГўГіГѕГ№ГЁГµ Г«ГЁГ±ГІГ®Гў
+' ver. 0.3 от 28.01.2019
+' ver. 0.4 от 25.02.2019 добавлена печать проверенных страниц, количество столбцов и строк, исправлены ошибки по выходу за пределы существующих листов
 ' ver. 0.5 21.03.2019
 ' ver. 0.6 16.04.2019
 Dim myName As String, curPage As String, wB As Workbook, curRow As Integer, upBound As Integer
-Dim thisWorkBookPages() As String 'Г¬Г Г±Г±ГЁГў Г¤Г«Гї Г±ГІГ°Г Г­ГЁГ¶ ГЅГІГ®ГЈГ® ГґГ Г©Г«Г 
-Dim otherWorkBookPages() As String 'Г¬Г Г±Г±ГЁГў Г¤Г«Гї Г±ГІГ°Г Г­ГЁГ¶ Г±Г°Г ГўГ­ГЁГўГ ГҐГ¬Г®ГЈГ® ГґГ Г©Г«Г 
-Dim WorkBookPages() As String 'Г¬Г Г±Г±ГЁГў Г«ГЁГ±ГІГ®Гў Г®ГЎГ№ГЁГµ Г¤Г«Гї Г¤ГўГіГµ ГґГ Г©Г«Г®Гў.
-Dim HyperLink As String 'ГЈГЁГЇГҐГ°Г±Г±Г»Г«ГЄГ  Г­Г  ГЅГ«ГҐГ¬ГҐГ­ГІ
+Dim thisWorkBookPages() As String 'массив для страниц этого файла
+Dim otherWorkBookPages() As String 'массив для страниц сравниваемого файла
+Dim WorkBookPages() As String 'массив листов общих для двух файлов.
+Dim HyperLink As String 'гиперссылка на элемент
 Dim a As Long, b As Long, i As Long, j As Long
 Const START_ROW = 5, FIRST_COLUMN = 1, SECOND_COLUMN = 2, THIRD_COLUMN = 3
 Dim ProblemFound As Boolean
 
 'opening workbook
 With Application.FileDialog(msoFileDialogFilePicker)
-                .Title = "Г‚Г»ГЎГҐГ°ГЁГІГҐ ГґГ Г©Г« Г¤Г«Гї Г±Г°Г ГўГ­ГҐГ­ГЁГї"
+                .Title = "Выберите файл для сравнения"
                 .Show
      If .SelectedItems.Count = 0 Then Exit Sub
      myName = .SelectedItems(1)
@@ -23,16 +32,16 @@ Application.ScreenUpdating = False
 Workbooks.Open Filename:=myName: Set wB = Workbooks(ActiveWorkbook.Name)
 Windows(ThisWorkbook.Name).Activate: ActiveSheet.Unprotect
 
-'ГЇГ°Г®ГўГҐГ°ГЄГ  Г­Г  Г±ГіГ№ГҐГ±ГІГўГ®ГўГ Г­ГЁГҐ Г«ГЁГ±ГІГ  Compare, Г±Г®Г§Г¤Г Г­ГЁГҐ ГЇГ°ГЁ Г­ГҐГ®ГЎГµГ®Г¤ГЁГ¬Г®Г±ГІГЁ---------------------------------------------
+'проверка на существование листа Compare, создание при необходимости---------------------------------------------
 Dim wsSh As Worksheet
 On Error Resume Next
 Set wsSh = Sheets("Compare")
 If wsSh Is Nothing Then Sheets.Add(, Sheets(Sheets.Count)).Name = "Compare"
 
-'Г‡Г ГЇГ®Г«Г­ГҐГ­ГЁГҐ Г¬Г Г±Г±ГЁГўГ®Гў Г­Г Г§ГўГ Г­ГЁГїГ¬ГЁ Г±ГІГ°Г Г­ГЁГ¶, ГЇГ°Г®ГўГҐГ°ГЄГ  Г­Г  Г­Г Г«ГЁГ·ГЁГҐ Г«ГЁГ±ГІГ®Гў Гў Г®ГЎГ®ГЁГµ ГґГ Г©Г«Г Гµ--------------------------------
+'Заполнение массивов названиями страниц, проверка на наличие листов в обоих файлах--------------------------------
 curRow = START_ROW
 Sheets("Compare").Cells.Clear
-Call AddStrToJournal(curRow, "", "----------------------------ГЏГ®ГЁГ±ГЄ Г«ГЁГ±ГІГ®Гў ГЇГ°ГЁГ±ГіГІГ±ГІГўГіГѕГ№ГЁГµ ГІГ®Г«ГјГЄГ® Гў Г®Г¤Г­Г®Г¬ ГґГ Г©Г«ГҐ---------------", "", True)
+Call AddStrToJournal(curRow, "", "----------------------------Поиск листов присутствующих только в одном файле---------------", "", True)
 
 ReDim thisWorkBookPages(ActiveWorkbook.Worksheets.Count)
 ReDim otherWorkBookPages(wB.Worksheets.Count)
@@ -44,7 +53,7 @@ For i = 1 To ActiveWorkbook.Worksheets.Count
      If wB.Worksheets(j).Name = ActiveWorkbook.Worksheets(i).Name Then ProblemFound = False
    Next j
    If ProblemFound Then
-      Call AddStrToJournal(curRow, ActiveWorkbook.Worksheets(i).Name, "Г…Г±ГІГј Гў ГІГҐГЄГіГ№ГҐГ¬ ГґГ Г©Г«ГҐ ГЁ Г®ГІГ±ГіГІГ±ГІГўГіГҐГІ Гў Г®ГІГЄГ°Г»ГўГ ГҐГ¬Г®Г¬", "", True)
+      Call AddStrToJournal(curRow, ActiveWorkbook.Worksheets(i).Name, "Есть в текущем файле и отсутствует в открываемом", "", True)
    End If
 Next i
  
@@ -55,18 +64,18 @@ For i = 1 To wB.Worksheets.Count
         If ActiveWorkbook.Worksheets(j).Name = wB.Worksheets(i).Name Then ProblemFound = False
    Next j
    If ProblemFound Then
-        Call AddStrToJournal(curRow, wB.Worksheets(i).Name, "ГҐГ±ГІГј Гў Г®ГІГЄГ°Г»ГўГ ГҐГ¬Г®Г¬ ГґГ Г©Г«ГҐ ГЁ Г®ГІГ±ГіГІГ±ГІГўГіГҐГІ Гў ГІГҐГЄГіГ№ГҐГ¬", "", True)
+        Call AddStrToJournal(curRow, wB.Worksheets(i).Name, "есть в открываемом файле и отсутствует в текущем", "", True)
    End If
 Next i
-Call AddStrToJournal(curRow, "", "-------------------------ГЏГ®ГЁГ±ГЄ Г«ГЁГ±ГІГ®Гў ГЇГ°ГЁГ±ГіГІГ±ГІГўГіГѕГ№ГЁГµ ГІГ®Г«ГјГЄГ® Гў Г®Г¤Г­Г®Г¬ ГґГ Г©Г«ГҐ------------------", "", True)
+Call AddStrToJournal(curRow, "", "-------------------------Поиск листов присутствующих только в одном файле------------------", "", True)
 
-'Г‡Г ГЇГ®Г«Г­ГїГҐГ¬ Г¬Г Г±Г±ГЁГў Г±ГІГ°Г Г­ГЁГ¶ ГІГ®Г«ГјГЄГ® ГІГҐГ¬ГЁ Г±ГІГ°Г Г­ГЁГ¶Г Г¬ГЁ, ГЄГ®ГІГ®Г°Г»ГҐ ГҐГ±ГІГј Гў Г®ГЎГ®ГЁГµ ГґГ Г©Г«Г Гµ
+'Заполняем массив страниц только теми страницами, которые есть в обоих файлах
  upBound = 0
  For i = 0 To ActiveWorkbook.Worksheets.Count - 1
     For j = 0 To wB.Worksheets.Count - 1
       If thisWorkBookPages(i) = otherWorkBookPages(j) Then
-        ReDim Preserve WorkBookPages(upBound)  'Г“ГўГҐГ«ГЁГ·ГЁГўГ ГҐГ¬ Г­Г  ГҐГ¤ГЁГ­ГЁГ¶Гі Г¤ГЁГ­Г Г¬ГЁГ·ГҐГ±ГЄГЁГ© Г¬Г Г±Г±ГЁГў
-        WorkBookPages(upBound) = thisWorkBookPages(j) 'Г„Г®ГЎГ ГўГ«ГїГҐГ¬ Гў Г­ГҐГЈГ® Г­Г®ГўГ®ГҐ Г­Г Г§ГўГ Г­ГЁГҐ Г±ГІГ°Г Г­ГЁГ¶Г»
+        ReDim Preserve WorkBookPages(upBound)  'Увеличиваем на единицу динамический массив
+        WorkBookPages(upBound) = thisWorkBookPages(j) 'Добавляем в него новое название страницы
         upBound = upBound + 1
         Exit For
       End If
@@ -75,9 +84,9 @@ Call AddStrToJournal(curRow, "", "-------------------------ГЏГ®ГЁГ±ГЄ Г«ГЁГ±ГІГ®
       
    
   
-    'ГЇГ°Г®ГўГҐГ°ГЄГ  Г­Г  Г­Г Г«ГЁГ·ГЁГҐ #Г‘Г‘Г›Г‹ГЉГЂ! Г§Г ГЈГ®Г«Г®ГўГ®ГЄ
-   Call AddStrToJournal(curRow, "", "-------------------------ГЏГ®ГЁГ±ГЄ ГїГ·ГҐГҐГЄ ГІГЁГЇГ  #Г‘Г‘Г›Г‹ГЉГЂ------------------", "", True)
-   Call AddStrToJournal(curRow, "ГЌГ Г§ГўГ Г­ГЁГҐ Г«ГЁГ±ГІГ ", "ГЉГ®Г«ГЁГ·ГҐГ±ГІГўГ® ГЇГ°Г®ГўГҐГ°ГҐГ­Г­Г»Гµ Г±ГІГ®Г«ГЎГ¶Г®Гў", "ГЉГ®Г«ГЁГ·ГҐГ±ГІГўГ® ГЇГ°Г®ГўГҐГ°ГҐГ­Г­Г»Гµ Г±ГІГ°Г®ГЄ", True)
+    'проверка на наличие #ССЫЛКА! заголовок
+   Call AddStrToJournal(curRow, "", "-------------------------Поиск ячеек типа #ССЫЛКА------------------", "", True)
+   Call AddStrToJournal(curRow, "Название листа", "Количество проверенных столбцов", "Количество проверенных строк", True)
    ProblemFound = False
    For j = 0 To UBound(thisWorkBookPages) - 1
         curPage = thisWorkBookPages(j)
@@ -88,12 +97,12 @@ Call AddStrToJournal(curRow, "", "-------------------------ГЏГ®ГЁГ±ГЄ Г«ГЁГ±ГІГ®
         For i = 1 To numRow
         
             For y = 1 To numCol
-                If Sheets(curPage).Cells(i, y).Value = "#Г‘Г‘Г›Г‹ГЉГЂ!" Then
-                                  HyperLink = "=ГѓГ€ГЏГ…ГђГ‘Г‘Г›Г‹ГЉГЂ(""#'" + curPage + "'!" + Replace(Sheets(curPage).Cells(i, y).Address, "$", "") + """;"""
-                                  Sheets("Compare").Cells(curRow, FIRST_COLUMN).Value = "Г‹ГЁГ±ГІ: " + curPage + " ГџГ·ГҐГ©ГЄГ : " + Replace(Sheets(curPage).Cells(i, y).Address, "$", "")
+                If Sheets(curPage).Cells(i, y).Value = "#ССЫЛКА!" Then
+                                  HyperLink = "=ГИПЕРССЫЛКА(""#'" + curPage + "'!" + Replace(Sheets(curPage).Cells(i, y).Address, "$", "") + """;"""
+                                  Sheets("Compare").Cells(curRow, FIRST_COLUMN).Value = "Лист: " + curPage + " Ячейка: " + Replace(Sheets(curPage).Cells(i, y).Address, "$", "")
                                   Sheets("Compare").Cells(curRow, FIRST_COLUMN).Font.Bold = True
                                   Sheets("Compare").Cells(curRow, SECOND_COLUMN).FormulaR1C1Local = HyperLink + Replace(Sheets(curPage).Cells(i, y).Address, "$", "") + """)"
-                                  Sheets("Compare").Cells(curRow, 3).Value = "Г‚Г»ГїГўГ«ГҐГ­Г  ГЇГҐГ°ГҐГ¬ГҐГ­Г­Г Гї ГІГЁГЇГ  #Г‘Г‘Г›Г‹ГЉГЂ!"
+                                  Sheets("Compare").Cells(curRow, 3).Value = "Выявлена переменная типа #ССЫЛКА!"
                                   curRow = curRow + 1
                                   ProblemFound = True
                 End If
@@ -101,11 +110,11 @@ Call AddStrToJournal(curRow, "", "-------------------------ГЏГ®ГЁГ±ГЄ Г«ГЁГ±ГІГ®
         Next
     Next
     If Not ProblemFound Then
-        Call AddStrToJournal(curRow, "", "-------------------------ГЏГ®ГЁГ±ГЄ Г§Г­Г Г·ГҐГ­ГЁГ© ГІГЁГЇГ  #Г‘Г‘Г›Г‹ГЉГЂ Г§Г ГЄГ®Г­Г·ГҐГ­, ГЇГ°Г®ГЎГ«ГҐГ¬ Г­ГҐ ГўГ»ГїГўГ«ГҐГ­Г®--------------------------", "", True)
+        Call AddStrToJournal(curRow, "", "-------------------------Поиск значений типа #ССЫЛКА закончен, проблем не выявлено--------------------------", "", True)
     End If
-    'Г§Г ГЈГ®Г«Г®ГўГ®ГЄ Г±Г°Г ГўГ­ГҐГ­ГЁГї
-    Call AddStrToJournal(curRow, "", "-------------------------ГЏГ®ГЁГ±ГЄ Г­ГҐГ±Г®ГўГЇГ Г¤Г ГѕГ№ГЁГµ ГїГ·ГҐГҐГЄ Гў Г«ГЁГ±ГІГ Гµ----------------------------", "", True)
-    Call AddStrToJournal(curRow, "ГЌГ Г§ГўГ Г­ГЁГҐ Г«ГЁГ±ГІГ ", "Г‡Г­Г Г·ГҐГ­ГЁГҐ Гў ГІГҐГЄГіГ№ГҐГ¬ ГґГ Г©Г«ГҐ", "Г‡Г­Г Г·ГҐГ­ГЁГҐ Гў Г®ГІГЄГ°Г»ГўГ ГҐГ¬Г®Г¬ ГґГ Г©Г«ГҐ", True)
+    'заголовок сравнения
+    Call AddStrToJournal(curRow, "", "-------------------------Поиск несовпадающих ячеек в листах----------------------------", "", True)
+    Call AddStrToJournal(curRow, "Название листа", "Значение в текущем файле", "Значение в открываемом файле", True)
    
     
     For j = 0 To UBound(WorkBookPages) - 1
@@ -116,7 +125,7 @@ Call AddStrToJournal(curRow, "", "-------------------------ГЏГ®ГЁГ±ГЄ Г«ГЁГ±ГІГ®
         a = Sheets(curPage).Cells.SpecialCells(xlLastCell).Row
         b = wB.Sheets(curPage).Cells.SpecialCells(xlLastCell).Row
         numRow = MinOf(a, b)
-        Call AddStrToJournal(curRow, "Г‘ГІГ°Г Г­ГЁГ¶Г  " + curPage, " -  ГЇГ°Г®ГўГҐГ°ГЄГ ", "", True)
+        Call AddStrToJournal(curRow, "Страница " + curPage, " -  проверка", "", True)
           
         
         ProblemFound = False
@@ -125,22 +134,22 @@ Call AddStrToJournal(curRow, "", "-------------------------ГЏГ®ГЁГ±ГЄ Г«ГЁГ±ГІГ®
              For y = 1 To numCol
                  If Sheets(curPage).Cells(i, y) <> wB.Sheets(curPage).Cells(i, y) Then
                            ProblemFound = True
-                           Sheets("Compare").Cells(curRow, FIRST_COLUMN).Value = "Г‹ГЁГ±ГІ: " + curPage + " ГџГ·ГҐГ©ГЄГ : " + Replace(Sheets(curPage).Cells(i, y).Address, "$", "")
-                           HyperLink = "=ГѓГ€ГЏГ…ГђГ‘Г‘Г›Г‹ГЉГЂ(""#'" + curPage + "'!" + Replace(Sheets(curPage).Cells(i, y).Address, "$", "") + """;"""
+                           Sheets("Compare").Cells(curRow, FIRST_COLUMN).Value = "Лист: " + curPage + " Ячейка: " + Replace(Sheets(curPage).Cells(i, y).Address, "$", "")
+                           HyperLink = "=ГИПЕРССЫЛКА(""#'" + curPage + "'!" + Replace(Sheets(curPage).Cells(i, y).Address, "$", "") + """;"""
                            Sheets("Compare").Cells(curRow, SECOND_COLUMN).FormulaR1C1Local = HyperLink + Sheets(curPage).Cells(i, y).Value + """)"
                                  
-                           HyperLink = "=ГѓГ€ГЏГ…ГђГ‘Г‘Г›Г‹ГЉГЂ(""#'" + wB.Path + "\[" + wB.Name + "]" + curPage + "'!" + Replace(Sheets(curPage).Cells(i, y).Address, "$", "") + """;"""
+                           HyperLink = "=ГИПЕРССЫЛКА(""#'" + wB.Path + "\[" + wB.Name + "]" + curPage + "'!" + Replace(Sheets(curPage).Cells(i, y).Address, "$", "") + """;"""
                            Sheets("Compare").Cells(curRow, THIRD_COLUMN).FormulaR1C1Local = HyperLink + wB.Sheets(curPage).Cells(i, y) + """)"
                            curRow = curRow + 1
                  End If
             Next
         Next
         If Not ProblemFound Then
-          Call AddStrToJournal(curRow, "Г‘ГІГ°Г Г­ГЁГ¶Г  " + curPage, " -  Г°Г Г§Г«ГЁГ·ГЁГ© Г­ГҐ Г­Г Г©Г¤ГҐГ­Г®", "", True)
+          Call AddStrToJournal(curRow, "Страница " + curPage, " -  различий не найдено", "", True)
         End If
 
     Next
-    Call AddStrToJournal(curRow, "", "-------------------------ГЏГ®ГЁГ±ГЄ Г­ГҐГ±Г®ГўГЇГ Г¤Г ГѕГ№ГЁГµ ГїГ·ГҐГҐГЄ Гў Г«ГЁГ±ГІГ Гµ Г§Г ГЄГ®Г­Г·ГҐГ­-------------------", "", True)
+    Call AddStrToJournal(curRow, "", "-------------------------Поиск несовпадающих ячеек в листах закончен-------------------", "", True)
     ActiveSheet.Protect: Application.ScreenUpdating = True
     ActiveSheet.Unprotect
     'wB.Close
